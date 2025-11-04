@@ -15,7 +15,7 @@ use crate::file::FileOptions;
 use crate::file::Log;
 use crate::file::Storage;
 use crate::file::Trailer;
-use crate::object::Catalog;
+use crate::object::{Catalog, NameDictionary};
 use crate::object::Cloner;
 use crate::object::DeepClone;
 use crate::object::InfoDict;
@@ -111,14 +111,22 @@ impl PageBuilder {
 }
 
 pub struct CatalogBuilder {
-    pages: Vec<PageBuilder>
+    pages: Vec<PageBuilder>,
+    names: Option<NameDictionary>,
 }
 impl CatalogBuilder {
     pub fn from_pages(pages: Vec<PageBuilder>) -> CatalogBuilder {
         CatalogBuilder {
-            pages
+            pages,
+            names: None,
         }
     }
+
+    pub fn names(mut self, names: NameDictionary) -> CatalogBuilder {
+        self.names = Some(names);
+        self
+    }
+
     pub fn build(self, update: &mut impl Updater) -> Result<Catalog> {
         let kids_promise: Vec<_> = self.pages.iter()
             .map(|_page| update.promise::<PagesNode>())
@@ -159,7 +167,7 @@ impl CatalogBuilder {
         Ok(Catalog {
             version: Some("1.7".into()),
             pages: tree,
-            names: None,
+            names: self.names.map(|n| n.into()),
             dests: None,
             metadata: None,
             outlines: None,
